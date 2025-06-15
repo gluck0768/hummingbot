@@ -1,0 +1,12 @@
+markets: {}
+candles_config: []
+controllers_config:
+- v6_trump.yml
+script_file_name: v2_with_controllers.py
+time_to_cash_out: null
+max_global_drawdown: null
+max_controller_drawdown: 3
+rebalance_interval: null
+extra_inventory: 0.02
+min_amount_to_rebalance_usd: '8'
+asset_to_rebalance: USDT

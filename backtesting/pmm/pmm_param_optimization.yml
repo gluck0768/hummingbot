@@ -1,0 +1,42 @@
+buy_amounts_pct:
+- 0.5
+buy_spreads:
+- 3
+sell_amounts_pct:
+- 0.5
+sell_spreads:
+- 3
+candles_config: []
+connector_name: binance_perpetual
+controller_name: pmm_trending_adaptive_v6
+controller_type: market_making
+cooldown_time: 1800
+executor_refresh_time: 59
+id: v6-1
+leverage: 20
+manual_kill_switch: false
+position_mode: HEDGE
+stop_loss: 8
+take_profit: 4
+take_profit_order_type: 2
+time_limit: 86400
+total_amount_quote: 60
+trading_pair: TRUMP-USDT
+trailing_stop:
+  activation_price: 100
+  trailing_delta: 0.5
+sleep_interval: 1
+update_interval: 5
+candle_interval: 1m
+reference_price_type: mid
+sma_short_length: 10
+sma_length: 30
+cci_length: 30
+cci_threshold: 80
+natr_length: 15
+widen_spread_multiplier: 2
+narrow_spread_multiplier: 1
+early_stop_activation_price_min: 0.006
+early_stop_decrease_interval: 0
+trade_cost: 0.0002
+max_stop_loss: 0.02
