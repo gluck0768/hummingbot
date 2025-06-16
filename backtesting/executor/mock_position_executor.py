@@ -89,11 +89,12 @@ class MockPositionExecutor(PositionExecutor):
             self.close_type = close_type
         super().stop()
     
-    def quantize_order_amount(self, amount):
-        trading_rule = self.market_data_provider.get_trading_rules(self.config.connector_name, self.config.trading_pair)
-        order_size_quantum = trading_rule.min_order_size
-        return (amount // order_size_quantum) * order_size_quantum
+    def quantize_order_price(self, price) -> Decimal:
+        return self.market_data_provider.quantize_order_price(self.config.connector_name, self.config.trading_pair, price)
     
+    def quantize_order_amount(self, amount) -> Decimal:
+        return self.market_data_provider.quantize_order_amount(self.config.connector_name, self.config.trading_pair, amount)
+
     @property
     def open_filled_amount(self) -> Decimal:
         if self._open_order:
@@ -101,7 +102,7 @@ class MockPositionExecutor(PositionExecutor):
                 open_filled_amount = self._open_order.executed_amount_base - self._open_order.cum_fees_base
             else:
                 open_filled_amount = self._open_order.executed_amount_base
-            return self.quantize_order_amount(amount=open_filled_amount)
+            return self.quantize_order_amount(open_filled_amount)
         else:
             return Decimal("0")
     
@@ -267,7 +268,6 @@ class MockPositionExecutor(PositionExecutor):
             self.build_and_process_filled_event(close_order, close_type)
 
     def place_take_profit_limit_order(self):
-        entry_price = self.take_profit_price
         if self.config.triple_barrier_config.take_profit_order_type == OrderType.LIMIT:
             # Actually when placing take profit limit order, the take_profit_price does not include trade_cost.
             # It differs from the take_profit_price calculated in market order type, which will calculate pnl including fees.
@@ -275,7 +275,18 @@ class MockPositionExecutor(PositionExecutor):
             factor = -1 if self._open_order.order.trade_type == TradeType.SELL else 1
             entry_price = self.take_profit_price * (1 + factor * self.trade_cost)
         
-        return super().place_take_profit_limit_order()
+        order_price = self.quantize_order_price(self.take_profit_price)
+        order_id = self.place_order(
+            connector_name=self.config.connector_name,
+            trading_pair=self.config.trading_pair,
+            amount=self.amount_to_close,
+            price=order_price,
+            order_type=self.config.triple_barrier_config.take_profit_order_type,
+            position_action=PositionAction.CLOSE,
+            side=self.close_order_side,
+        )
+        self._take_profit_limit_order = TrackedOrder(order_id=order_id)
+        self.logger().debug(f"Executor ID: {self.config.id} - Placing take profit order {order_id}")
 
     def format_timestamp(self, current_timestamp):
         return datetime.fromtimestamp(current_timestamp).strftime('%m%d/%H:%M:%S')
@@ -285,7 +296,7 @@ class MockPositionExecutor(PositionExecutor):
             return price
         
         factor = -1 if trade_type == TradeType.SELL else 1
-        return price * (1 + factor * self.slippage)
+        return self.quantize_order_price(price * (1 + factor * self.slippage))
     
     def calc_order_filled_price(self, order: InFlightOrder) -> Decimal:
         return self.calc_filled_price_with_slippage(order.price, order.order_type, order.trade_type)

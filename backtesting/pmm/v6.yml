@@ -1,11 +1,11 @@
 buy_amounts_pct:
 - 0.5
 buy_spreads:
-- 2
+- 3
 sell_amounts_pct:
 - 0.5
 sell_spreads:
-- 2
+- 3
 candles_config: []
 connector_name: binance_perpetual
 controller_name: pmm_trending_adaptive_v6

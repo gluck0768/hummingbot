@@ -211,13 +211,19 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
             last_index = -2
         return last_index
     
-    def calc_refrence_price(self) -> Decimal:
+    def quantize_order_price(self, price) -> Decimal:
+        return self.market_data_provider.quantize_order_price(self.config.connector_name, self.config.trading_pair, price)
+    
+    def quantize_order_amount(self, amount) -> Decimal:
+        return self.market_data_provider.quantize_order_amount(self.config.connector_name, self.config.trading_pair, amount)
+    
+    def calc_reference_price(self) -> Decimal:
         reference_candles = self.market_data_provider.get_candles_df(connector_name=self.reference_candles_config.connector,
                                             trading_pair=self.reference_candles_config.trading_pair,
                                             interval=self.reference_candles_config.interval,
                                             max_records=self.reference_candles_config.max_records)
         last_index = self.calc_last_index()
-            
+        
         # last_open = reference_candles["open"].iloc[last_index]
         last_high = reference_candles["high"].iloc[last_index]
         last_low = reference_candles["low"].iloc[last_index]
@@ -242,7 +248,7 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
         level = self.get_level_from_level_id(level_id)
         trade_type = self.get_trade_type_from_level_id(level_id)
         spreads, amounts_quote = self.config.get_spreads_and_amounts_in_quote(trade_type)
-        reference_price = self.calc_refrence_price()
+        reference_price = self.calc_reference_price()
         if reference_price == 0:
             return 0, 0
         
@@ -275,7 +281,8 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
         if order_price <= 0:
             return 0, 0
         
-        return order_price, round(Decimal(amounts_quote[int(level)]) / order_price, 2)
+        order_price = self.quantize_order_price(order_price)
+        return order_price, self.quantize_order_amount(round(Decimal(amounts_quote[int(level)]) / order_price, 2))
 
     def get_executor_config(self, level_id: str, price: Decimal, amount: Decimal):
         if price == 0:
