@@ -367,18 +367,18 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
             return executors_to_early_stop
             
         # make the order placing time align to the backtest time
-        if self.config.refresh_time_align and self.time_align_refreshable:
+        if self.config.refresh_time_align:
             current_timestamp = self.market_data_provider.time()
             current_second = datetime.fromtimestamp(current_timestamp).second
-            if current_second < 5:
+            if current_second > 57:
                 for executor_info in self.executors_info:
                     if executor_info.is_active and not executor_info.is_trading:
                         execution_end_timestamp = executor_info.timestamp + self.config.executor_refresh_time
                         zero_second_timestamp = datetime.fromtimestamp(execution_end_timestamp).replace(second=0, microsecond=0).timestamp()
-                        if current_timestamp >= zero_second_timestamp:
+                        if current_timestamp + 2 > zero_second_timestamp:
                             executors_to_early_stop.append(executor_info)
                             self.log_msg(f'Add {executor_info.config.level_id} executor to early stop')
-                self.time_align_refreshable = False
+                # self.time_align_refreshable = False
                 
         if self.config.early_stop_decrease_interval <= 0:
             return executors_to_early_stop
