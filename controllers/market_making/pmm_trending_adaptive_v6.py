@@ -343,9 +343,6 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
         )
 
     def get_levels_to_execute(self) -> List[str]:
-        if pmm_common.BACKTESTING:
-            return super().get_levels_to_execute()
-        
         current_timestamp = self.market_data_provider.time()
         current_minute = datetime.fromtimestamp(current_timestamp).minute
         candle_seconds = CandlesBase.interval_to_seconds[self.reference_candles_config.interval]

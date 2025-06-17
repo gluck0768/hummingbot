@@ -85,15 +85,19 @@ class CacheableBacktestMarketDataProvider(BacktestingDataProvider):
         if existing_feed.empty:
             return existing_feed
         
-        if 'timestamp' in existing_feed.columns:
+        if 'timestamp' in existing_feed.columns and not existing_feed.index.name == 'timestamp':
             existing_feed = self.index_and_sort_by_timestamp(existing_feed)
         
         existing_feed_start_time = existing_feed.index.min()
         existing_feed_end_time = existing_feed.index.max()
         if existing_feed_start_time <= self.start_time and existing_feed_end_time >= self.end_time:
-            return self.index_and_sort_by_timestamp(existing_feed[existing_feed.index < self.end_time])
+            return existing_feed[existing_feed.index < self.end_time]
         else:
             return pd.DataFrame()
+        
+    def get_candles_df(self, connector_name: str, trading_pair: str, interval: str, max_records: int = 500):
+        df = self.candles_feeds.get(f"{connector_name}_{trading_pair}_{interval}")
+        return df[(df.index >= self.start_time) & (df.index <= self.end_time)]
 
     async def get_candles_feed(self, config: CandlesConfig):
         key = self._generate_candle_feed_key(config)
