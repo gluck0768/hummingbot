@@ -839,7 +839,7 @@ class ParamSpace:
         batch = 1
         
         executor_refresh_time_space = [60, 120, 180]
-       
+        
         for executor_refresh_time in executor_refresh_time_space:
             backtest_param = copy.deepcopy(base_backtest_param)
             
@@ -856,7 +856,7 @@ class ParamSpace:
         backtest_params = []
         batch = 1
         
-        executor_refresh_time_space = [59]
+        executor_refresh_time_space = [70]
         take_profit_space = np.arange(1, 7.1, 1)
         stop_loss_space = np.arange(4, 12.1, 1)
         # cooldown_time_space = [600, 900, 1800]

@@ -28,7 +28,8 @@ class CCXTDownloader:
     
     def fetch_trades(self, symbol: str, start_time: int, end_time: int) -> pd.DataFrame:
         symbol = self._to_ccxt_symbol(symbol, self.is_perpetual)
-        existing_trades = self._load_trades_from_local(symbol, start_time, end_time)
+        local_trades = self._load_trades_from_local(symbol, start_time, end_time)
+        existing_trades = self._merge_same_time_and_price(local_trades)
         if not existing_trades.empty:
             return existing_trades
         
@@ -128,6 +129,24 @@ class CCXTDownloader:
                 return pd.DataFrame()
             
         return pd.read_parquet(file_path, engine="pyarrow")
+    
+    def _merge_same_time_and_price(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return df
+        
+        df['group'] = (
+            (df['timestamp'] != df['timestamp'].shift()) | 
+            (df['price'] != df['price'].shift())
+        ).cumsum()
+        
+        df_merged = (
+            df.groupby(['group', 'timestamp', 'price'], sort=False)
+            .agg({'volume': 'sum'})
+            .reset_index()
+            .drop(columns='group')
+            .sort_values('timestamp')
+        )
+        return df_merged
     
     def _save_to_local(self, df: pd.DataFrame, symbol: str, start_time: int, end_time: int):
         if not os.path.exists(self.data_dir):
