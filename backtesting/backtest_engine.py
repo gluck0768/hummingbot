@@ -720,7 +720,7 @@ class BacktestEngine(BacktestingEngineBase):
 
             # 1. simulate the control task in position executor
             for executor_id, executor in list(active_executors.items()):
-                active = executor.on_market_data(row)
+                active = executor.on_candle(row)
                 if not active:
                     # stopped_level_ids.append(executor.config.level_id)
                     del active_executors[executor_id]
@@ -761,7 +761,7 @@ class BacktestEngine(BacktestingEngineBase):
                     trade_cost=trade_cost,
                     slippage=slippage
                 )
-                active = executor.on_market_data(row)
+                active = executor.on_candle(row)
                 
                 if active:
                     active_executors[executor_id] = executor

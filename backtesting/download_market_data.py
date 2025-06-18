@@ -104,7 +104,7 @@ class CCXTDownloader:
                     all_trades.extend(new_trades)
                     last_timestamp = new_trades[-1]['timestamp']
                     progress = min(1, (last_timestamp - start_time) / (end_time - start_time))
-                    logger.info(f"Fetched {len(all_trades)} trades, progress: {progress:.2%}")
+                    logger.warning(f"Fetched {len(all_trades)} trades, progress: {progress:.2%}")
                 
                 current_since_ms = trades[-1]['timestamp']
                 

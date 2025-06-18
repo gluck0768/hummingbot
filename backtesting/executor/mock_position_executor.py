@@ -428,7 +428,7 @@ class MockPositionExecutor(PositionExecutor):
         
         return True
     
-    def on_market_data(self, market_data) -> bool:
+    def on_candle(self, market_data) -> bool:
         """ test on market data
 
         Args:
