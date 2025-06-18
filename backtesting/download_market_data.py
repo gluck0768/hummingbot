@@ -1,5 +1,6 @@
 import os
 import glob
+import math
 import ccxt
 from backtesting import backtest_utils
 import pandas as pd
@@ -29,9 +30,12 @@ class CCXTDownloader:
     def fetch_trades(self, symbol: str, start_time: int, end_time: int) -> pd.DataFrame:
         symbol = self._to_ccxt_symbol(symbol, self.is_perpetual)
         local_trades = self._load_trades_from_local(symbol, start_time, end_time)
-        existing_trades = self._merge_same_time_and_price(local_trades)
-        if not existing_trades.empty:
-            return existing_trades
+        if not local_trades.empty:
+            return local_trades
+        
+        # existing_trades = self._merge_same_time_and_price(local_trades)
+        # if not existing_trades.empty:
+        #     return existing_trades
         
         if not self.exchange.has['fetchTrades']:
             logger.error(f"Exchange {self.exchange_id} does not support fetching trades")
@@ -50,6 +54,8 @@ class CCXTDownloader:
         
         all_trades = []
         try:
+            prev_timestamp = 0
+            prev_price = 0.0
             while current_since_ms < end_time_ms:
                 trades = self.exchange.fetch_trades(symbol, since=current_since_ms, limit=1000)
                 
@@ -77,9 +83,23 @@ class CCXTDownloader:
                     
                     last_trade_id = trade_id
                     
-                    new_trades.append({"timestamp": int(trade['timestamp'] / 1000), "price": trade['price'], "volume": trade['amount']})
+                    current_timestamp = int(trade['timestamp'] / 1000)
+                    if current_timestamp > end_time:
+                        break
+                    
+                    current_price = float(trade['price'])
+                    volume = trade['amount']
+                    
+                    if new_trades and prev_timestamp == current_timestamp and math.isclose(prev_price, current_price, abs_tol=1e-7):
+                        last_volume = new_trades[-1].get("volume")
+                        new_trades[-1] = {"timestamp": current_timestamp, "price": current_price, "volume": volume + last_volume}
+                    else:
+                        new_trades.append({"timestamp": current_timestamp, "price": current_price, "volume": volume})
+                    
+                    prev_timestamp = current_timestamp
+                    prev_price = current_price
                     seen_ids.add(trade_id)
-                
+                    
                 if new_trades:
                     all_trades.extend(new_trades)
                     last_timestamp = new_trades[-1]['timestamp']
@@ -87,8 +107,6 @@ class CCXTDownloader:
                     logger.info(f"Fetched {len(all_trades)} trades, progress: {progress:.2%}")
                 
                 current_since_ms = trades[-1]['timestamp']
-                if current_since_ms > end_time_ms:
-                    break
                 
         except ccxt.NetworkError as e:
             logger.error(f"Network error: {e}")
@@ -130,23 +148,23 @@ class CCXTDownloader:
             
         return pd.read_parquet(file_path, engine="pyarrow")
     
-    def _merge_same_time_and_price(self, df: pd.DataFrame) -> pd.DataFrame:
-        if df.empty:
-            return df
+    # def _merge_same_time_and_price(self, df: pd.DataFrame) -> pd.DataFrame:
+    #     if df.empty:
+    #         return df
         
-        df['group'] = (
-            (df['timestamp'] != df['timestamp'].shift()) | 
-            (df['price'] != df['price'].shift())
-        ).cumsum()
+    #     df['group'] = (
+    #         (df['timestamp'] != df['timestamp'].shift()) | 
+    #         (df['price'] != df['price'].shift())
+    #     ).cumsum()
         
-        df_merged = (
-            df.groupby(['group', 'timestamp', 'price'], sort=False)
-            .agg({'volume': 'sum'})
-            .reset_index()
-            .drop(columns='group')
-            .sort_values('timestamp')
-        )
-        return df_merged
+    #     df_merged = (
+    #         df.groupby(['group', 'timestamp', 'price'], sort=False)
+    #         .agg({'volume': 'sum'})
+    #         .reset_index()
+    #         .drop(columns='group')
+    #         .sort_values('timestamp')
+    #     )
+    #     return df_merged
     
     def _save_to_local(self, df: pd.DataFrame, symbol: str, start_time: int, end_time: int):
         if not os.path.exists(self.data_dir):

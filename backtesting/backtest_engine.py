@@ -806,7 +806,7 @@ class BacktestEngine(BacktestingEngineBase):
             "results": results,
             "processed_data": self.controller.processed_data,
         }
- 
+
 
 @dataclass
 class BacktestParam:
