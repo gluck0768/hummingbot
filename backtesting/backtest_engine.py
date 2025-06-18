@@ -23,7 +23,6 @@ from backtesting import backtest_utils
 socks.set_default_proxy(socks.SOCKS5, backtest_utils.SOCKS_RPOXY_IP, backtest_utils.SOCKS_PROXY_PORT)
 socket.socket = socks.socksocket
 
-from backtesting import download_market_data
 from backtesting.backtest_market_data_provider import CacheableBacktestMarketDataProvider
 from backtesting.base.executor_simulator_base import ExecutorSimulation, ExecutorSimulatorBase
 from backtesting.base.backtesting_engine_base import BacktestingEngineBase
@@ -488,8 +487,7 @@ class BacktestEngine(BacktestingEngineBase):
         
         connector_name = controller_config.connector_name
         trading_pair = controller_config.trading_pair
-        trades_df = download_market_data.CCXTDownloader(exchange_id=connector_name, base_dir=self.base_dir).fetch_trades(trading_pair, start, end)
-        
+        trades_df = self.backtesting_data_provider.get_trades(connector_name, trading_pair, start, end)
         for _, row in trades_df.iterrows():
             current_timestamp = int(row["timestamp"])
             if current_timestamp < start:

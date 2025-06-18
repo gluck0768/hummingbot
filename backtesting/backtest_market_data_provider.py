@@ -8,6 +8,8 @@ import pandas as pd
 
 from backtesting.base.backtesting_data_provider import BacktestingDataProvider
 
+from backtesting.download_market_data import CCXTDownloader
+
 from hummingbot.connector.connector_base import ConnectorBase
 from hummingbot.data_feed.candles_feed.data_types import CandlesConfig
 
@@ -16,12 +18,19 @@ class CacheableBacktestMarketDataProvider(BacktestingDataProvider):
     
     def __init__(self, connectors: Dict[str, ConnectorBase], base_dir: str = '.'):
         super().__init__(connectors)
+        self.base_dir = base_dir
         self.data_dir = os.path.join(base_dir, 'data')
+        self.ccxt_downloader = None
+        self.cached_trades = {}
     
     async def init_data(self, start_time: int, end_time: int, candles_config: CandlesConfig):
         self.update_start_end_time(start_time, end_time)
         await self.initialize_trading_rules(candles_config.connector)
         await self.get_candles_feed(candles_config)
+        
+        trades_connector = candles_config.connector
+        trading_pair = candles_config.trading_pair        
+        self.initialize_trades(trades_connector, trading_pair, start_time, end_time)
     
     async def initialize_trading_rules(self, connector: str):
         if len(self.trading_rules.get(connector, {})) == 0:
@@ -43,10 +52,29 @@ class CacheableBacktestMarketDataProvider(BacktestingDataProvider):
             pickle.dump(self.trading_rules[connector], f)
             print(f'Saved {connector} trading rules to {file_path}')
     
+    def _get_cached_trades_key(self, connector: str, trading_pair: str, start_time: int, end_time: int):
+        return f'{connector}-{trading_pair}-{start_time}-{end_time}'
+    
+    def initialize_trades(self, connector: str, trading_pair: str, start_time: int, end_time: int):
+        key = self._get_cached_trades_key(connector, trading_pair, start_time, end_time)
+        if key in self.cached_trades:
+            return
+        
+        if not self.ccxt_downloader:
+            self.ccxt_downloader = CCXTDownloader(connector, self.base_dir)
+            
+        trades_df = self.ccxt_downloader.fetch_trades(trading_pair, start_time, end_time)
+        self.cached_trades = {key: trades_df}
+        
+    def get_trades(self, connector: str, trading_pair: str, start_time: int, end_time: int) -> pd.DataFrame:
+        self.initialize_trades(connector, trading_pair, start_time, end_time)
+        key = self._get_cached_trades_key(connector, trading_pair, start_time, end_time)
+        return self.cached_trades.get(key, pd.DataFrame())
+    
     def update_start_end_time(self, start_time: int, end_time: int):
         self.start_time = start_time
         self.end_time = end_time
-        
+
     def update_time(self, time: int):
         self._time = time
     

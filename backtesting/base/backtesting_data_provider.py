@@ -138,14 +138,17 @@ class BacktestingDataProvider(MarketDataProvider):
         """
         return self.prices.get(f"{connector_name}_{trading_pair}", Decimal("1"))
     
+    def get_trades(self, connector: str, trading_pair: str, start_time: int, end_time: int) -> pd.DataFrame:
+        pass
+    
     def get_volume(self, connector_name: str, trading_pair: str) -> Decimal:
         return self.volumes.get(f'{connector_name}_{trading_pair}', Decimal(0))
-            
-    def update_price(self, connector_name: str, trading_pair: str, price: float) -> None:
-        self.prices = {f'{connector_name}_{trading_pair}': Decimal(price)}
         
     def update_volume(self, connector_name: str, trading_pair: str, volume: float) -> None:
         self.volumes = {f'{connector_name}_{trading_pair}': Decimal(volume)}
+            
+    def update_price(self, connector_name: str, trading_pair: str, price: float) -> None:
+        self.prices = {f'{connector_name}_{trading_pair}': Decimal(price)}
 
     def quantize_order_amount(self, connector_name: str, trading_pair: str, amount: Decimal):
         """
