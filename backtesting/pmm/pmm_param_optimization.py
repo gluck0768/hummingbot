@@ -34,6 +34,6 @@ if __name__ == '__main__':
     slippage = 0.0001
     enable_trades = False
 
-    space_level = 0
+    space_level = 100
     param_optimization = backtest_engine.ParamOptimization()
     param_optimization.run(current_dir, config_file, start_date, end_date, space_level, backtest_resolution, trade_cost, slippage, enable_trades)
