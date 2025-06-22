@@ -32,7 +32,7 @@ if __name__ == '__main__':
     backtest_resolution = '1m'
     trade_cost = 0.0002
     slippage = 0.0001
-    enable_trades = True
+    enable_trades = False
 
     space_level = 0
     param_optimization = backtest_engine.ParamOptimization()
