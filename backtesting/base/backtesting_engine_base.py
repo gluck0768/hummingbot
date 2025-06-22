@@ -281,7 +281,7 @@ class BacktestingEngineBase:
             peak = np.maximum.accumulate(cumulative_returns)
             drawdown = (cumulative_returns - peak)
             max_draw_down = np.min(drawdown)
-            max_drawdown_pct = max_draw_down / executors_with_position["inventory"].iloc[0]
+            max_drawdown_pct = max_draw_down / executors_with_position["inventory"].iloc[0] if total_positions else 0.0
             returns = pd.to_numeric(
                 executors_with_position["cumulative_returns"] / executors_with_position["cumulative_volume"])
             sharpe_ratio = returns.mean() / returns.std() if len(returns) > 1 else 0

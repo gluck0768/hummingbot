@@ -253,7 +253,11 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
         if reference_price == 0:
             return 0, 0
         
-        base_spread_multiplier = Decimal(self.processed_data["natr"])
+        natr = self.processed_data.get("natr")
+        if natr is None:
+            return 0, 0
+        
+        base_spread_multiplier = Decimal(natr)
         spread_in_pct = Decimal(spreads[int(level)]) * base_spread_multiplier
         
         trend = self.processed_data["trend"]

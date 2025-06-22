@@ -862,9 +862,9 @@ class ParamSpace:
         backtest_params = []
         batch = 1
         
-        executor_refresh_time_space = [70, 130, 190, 250, 310]
+        executor_refresh_time_space = [70, 130, 190, 250, 310, 370]
         take_profit_space = np.arange(1, 7.1, 1)
-        stop_loss_space = np.arange(4, 12.1, 1)
+        stop_loss_space = np.arange(3, 12.1, 1)
         # cooldown_time_space = [600, 900, 1800]
         spread_space = [[0.5], [1], [2], [3], [4]]
         reference_price_type_space = ['mid', 'close']
@@ -874,7 +874,8 @@ class ParamSpace:
         # natr_length_space = [7, 14, 21]
         widen_space = [2, 3]
         narrow_space = [1]
-        max_stop_loss_space = np.arange(0.02, 0.031, 0.01)
+        max_stop_loss_space = [0.03]
+        # max_stop_loss_space = np.arange(0.02, 0.031, 0.01)
         
         for executor_refresh_time in executor_refresh_time_space:
             for take_profit in take_profit_space:
@@ -950,7 +951,7 @@ class ParamOptimization:
             os.mkdir(result_dir)
         
         print(f'Start running param optimization.')
-        cpus = min(os.cpu_count()-4, 64)
+        cpus = min(os.cpu_count()-4, round(0.8 * os.cpu_count()))
         with ProcessPoolExecutor(max_workers=cpus) as pool:
             results = list(pool.map(self.run_one, backtest_params))
             
@@ -970,7 +971,7 @@ class ParamOptimization:
             
             pd.set_option('display.max_columns', None)
             result_df = pd.DataFrame(rows).sort_values("net_pnl", ascending=False)
-            result_df_cols = ['net_pnl','net_pnl_quote','total_volume','cum_fees_quote','sharpe_ratio','profit_factor','total_executors_with_position','accuracy','accuracy_long','accuracy_short','max_drawdown_usd','max_drawdown_pct','buy_spreads','sell_spreads','executor_refresh_time','stop_loss','max_stop_loss','take_profit','trailing_stop','sma_short_length','sma_length','cci_length','cci_threshold','natr_length','widen_spread_multiplier','narrow_spread_multiplier','cooldown_time','trade_cost','slippage','total_amount_quote','total_executors','total_long','total_short','total_positions','win_signals','loss_signals','buy_amounts_pct','sell_amounts_pct','sleep_interval','time_limit','update_interval','candle_interval','candles_config','connector_name','controller_name','trading_pair','controller_type','id','leverage','manual_kill_switch','position_mode','take_profit_order_type']
+            result_df_cols = ['net_pnl','net_pnl_quote','total_volume','cum_fees_quote','sharpe_ratio','profit_factor','total_executors_with_position','accuracy','accuracy_long','accuracy_short','max_drawdown_usd','max_drawdown_pct','buy_spreads','sell_spreads','executor_refresh_time','reference_price_type','stop_loss','max_stop_loss','take_profit','trailing_stop','sma_short_length','sma_length','cci_length','cci_threshold','natr_length','widen_spread_multiplier','narrow_spread_multiplier','cooldown_time','trade_cost','slippage','total_amount_quote','total_executors','total_long','total_short','total_positions','win_signals','loss_signals','buy_amounts_pct','sell_amounts_pct','sleep_interval','time_limit','update_interval','candle_interval','candles_config','connector_name','controller_name','trading_pair','controller_type','id','leverage','manual_kill_switch','position_mode','take_profit_order_type']
             result_df = result_df[result_df_cols]
             result_df.to_csv(os.path.join(result_dir, result_file), index=False)
             
