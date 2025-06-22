@@ -323,14 +323,7 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
             time_limit_order_type=OrderType.MARKET  # Defaulting to MARKET as per requirement
         )
         
-        if not pmm_common.BACKTESTING or pmm_common.LOG_DETAIL:
-            self.log_msg(f"Creating executor {level_id} with price: {price:.7f}(reference:{reference_price:.7f}), "
-                         f"quote: {amount * price:.7f}, amount: {amount:.2f}, trade_type: {trade_type}, "
-                         f"stop_loss: {stop_loss:.4%}, take_profit: {take_profit:.4%}, "
-                         f"trailing_stop_activation_price: {trailing_stop_activation_price:.4%}, "
-                         f"trailing_stop_delta: {trailing_stop_delta:.4%}")
-        
-        return PositionExecutorConfig(
+        executor_config = PositionExecutorConfig(
             timestamp=self.market_data_provider.time(),
             level_id=level_id,
             connector_name=self.config.connector_name,
@@ -341,6 +334,15 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
             leverage=self.config.leverage,
             side=trade_type,
         )
+        
+        if not pmm_common.BACKTESTING or pmm_common.LOG_DETAIL:
+            self.log_msg(f"Creating executor {level_id} with price: {price:.7f}(reference:{reference_price:.7f}), "
+                         f"quote: {amount * price:.7f}, amount: {amount:.2f}, trade_type: {trade_type}, "
+                         f"stop_loss: {stop_loss:.4%}, take_profit: {take_profit:.4%}, "
+                         f"trailing_stop_activation_price: {trailing_stop_activation_price:.4%}, "
+                         f"trailing_stop_delta: {trailing_stop_delta:.4%}, id:{executor_config.id}")
+        
+        return executor_config
 
     def get_levels_to_execute(self) -> List[str]:
         current_timestamp = self.market_data_provider.time()
@@ -352,7 +354,7 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
             filter_func=lambda x: 
                 x.is_active
                 or (x.close_type == CloseType.STOP_LOSS and current_timestamp - x.close_timestamp < self.config.cooldown_time)
-                or (x.close_type in prevent_reentry_close_types and current_timestamp - x.close_timestamp < candle_seconds and current_minute == datetime.fromtimestamp(x.close_timestamp).minute)
+                or (x.close_type in prevent_reentry_close_types and x.close_timestamp and current_timestamp - x.close_timestamp < candle_seconds and current_minute == datetime.fromtimestamp(x.close_timestamp).minute)
         )
         working_levels_ids = [executor.custom_info["level_id"] for executor in working_levels]
         return self.get_not_active_levels_ids(working_levels_ids)
@@ -367,15 +369,17 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
         if self.config.refresh_time_align and self.time_align_refreshable:
             current_timestamp = self.market_data_provider.time()
             current_second = datetime.fromtimestamp(current_timestamp).second
-            if current_second < 5:
+            if current_second < 10:
                 for executor_info in self.executors_info:
                     if executor_info.is_active and not executor_info.is_trading:
                         execution_end_timestamp = executor_info.timestamp + self.config.executor_refresh_time
                         zero_second_timestamp = datetime.fromtimestamp(execution_end_timestamp).replace(second=0, microsecond=0).timestamp()
                         if current_timestamp >= zero_second_timestamp:
                             executors_to_early_stop.append(executor_info)
-                            self.log_msg(f'Add {executor_info.config.level_id} executor to early stop')
-                self.time_align_refreshable = False
+                            self.log_msg(f'Add {executor_info.config.level_id} executor to early stop, id:{executor_info.config.id}')
+                
+                if current_timestamp > self.last_update_data_time:
+                    self.time_align_refreshable = False
                 
         if self.config.early_stop_decrease_interval <= 0:
             return executors_to_early_stop

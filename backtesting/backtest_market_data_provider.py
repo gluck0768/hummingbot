@@ -16,10 +16,11 @@ from hummingbot.data_feed.candles_feed.data_types import CandlesConfig
 
 class CacheableBacktestMarketDataProvider(BacktestingDataProvider):
     
-    def __init__(self, connectors: Dict[str, ConnectorBase], base_dir: str = '.'):
+    def __init__(self, connectors: Dict[str, ConnectorBase], base_dir: str = '.', enable_trades: bool = False):
         super().__init__(connectors)
         self.base_dir = base_dir
         self.data_dir = os.path.join(base_dir, 'data')
+        self.enable_trades = enable_trades
         self.ccxt_downloader = None
         self.cached_trades = {}
     
@@ -29,25 +30,24 @@ class CacheableBacktestMarketDataProvider(BacktestingDataProvider):
         await self.get_candles_feed(candles_config)
         
         trades_connector = candles_config.connector
-        trading_pair = candles_config.trading_pair        
+        trading_pair = candles_config.trading_pair
         self.initialize_trades(trades_connector, trading_pair, start_time, end_time)
-    
+
     async def initialize_trading_rules(self, connector: str):
-        if len(self.trading_rules.get(connector, {})) == 0:
-            file_path = os.path.join(self.data_dir, self._get_local_trading_rules_file(connector))
-            if os.path.exists(file_path):
-                with open(file_path, "rb") as f:
-                    # print(f'Loaded {connector} trading rules from {file_path}')
-                    self.trading_rules[connector] = pickle.load(f)
-                    return
-        else:
+        if len(self.trading_rules.get(connector, {})) > 0:
             return
-        
+
+        file_path = os.path.join(self.data_dir, self._get_local_trading_rules_file(connector))
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as f:
+                # print(f'Loaded {connector} trading rules from {file_path}')
+                self.trading_rules[connector] = pickle.load(f)
+                return
         await super().initialize_trading_rules(connector)
-        
+
         if not os.path.exists(self.data_dir):
             os.mkdir(self.data_dir)
-            
+
         with open(file_path, "wb") as f:
             pickle.dump(self.trading_rules[connector], f)
             print(f'Saved {connector} trading rules to {file_path}')
@@ -60,6 +60,9 @@ class CacheableBacktestMarketDataProvider(BacktestingDataProvider):
         if key in self.cached_trades:
             return
         
+        if not self.enable_trades:
+            return
+        
         if not self.ccxt_downloader:
             self.ccxt_downloader = CCXTDownloader(connector, self.base_dir)
             
@@ -67,6 +70,9 @@ class CacheableBacktestMarketDataProvider(BacktestingDataProvider):
         self.cached_trades = {key: trades_df}
         
     def get_trades(self, connector: str, trading_pair: str, start_time: int, end_time: int) -> pd.DataFrame:
+        if not self.enable_trades:
+            raise Exception('Trades are not supported')
+        
         self.initialize_trades(connector, trading_pair, start_time, end_time)
         key = self._get_cached_trades_key(connector, trading_pair, start_time, end_time)
         return self.cached_trades.get(key, pd.DataFrame())

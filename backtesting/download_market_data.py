@@ -132,20 +132,26 @@ class CCXTDownloader:
     
     def _load_trades_from_local(self, symbol: str, start_time: int, end_time: int) -> pd.DataFrame:
         file_path = os.path.join(self.data_dir, self._get_local_trades_file_path(symbol, start_time, end_time))
-        if not os.path.exists(file_path):
-            key = self._generate_key(symbol)
-            files = glob.glob(os.path.join(self.data_dir, f"{key}-*.parquet"))
+        if os.path.exists(file_path):
+            return self.read_trades_file(file_path)
+        
+        key = self._generate_key(symbol)
+        files = glob.glob(os.path.join(self.data_dir, f"{key}-*.parquet"))
+        
+        existing = False
+        for f in files:
+            if int(f.split('-')[-2]) <= start_time and end_time <= int(f.split('-')[-1].split('.')[0]):
+                file_path = f
+                existing = True
+                break
             
-            existing = False
-            for f in files:
-                if int(f.split('-')[-2]) <= start_time and end_time <= int(f.split('-')[-1].split('.')[0]):
-                    file_path = f
-                    existing = True
-                    break
-                
-            if not existing:
-                return pd.DataFrame()
-            
+        if not existing:
+            return pd.DataFrame()
+
+        trades_df = self.read_trades_file(file_path)
+        return trades_df[(trades_df['timestamp'] >= start_time) & (trades_df['timestamp'] <= end_time)]
+
+    def read_trades_file(self, file_path):
         return pd.read_parquet(file_path, engine="pyarrow")
     
     # def _merge_same_time_and_price(self, df: pd.DataFrame) -> pd.DataFrame:

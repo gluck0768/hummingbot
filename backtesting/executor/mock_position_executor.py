@@ -414,12 +414,13 @@ class MockPositionExecutor(PositionExecutor):
     def get_market_price(self, price_type = PriceType.MidPrice):
         return self.market_data_provider.get_price_by_type(self.config.connector_name, self.config.trading_pair, price_type)
     
-    def on_trade(self) -> bool:
-        self.control_open_order()
+    def on_trade(self, trade_data) -> bool:
+        self.market_data_provider.update_price(self.config.connector_name, self.config.trading_pair, trade_data['price'])
+        self.market_data_provider.update_volume(self.config.connector_name, self.config.trading_pair, trade_data['volume'])
         
+        self.control_open_order()
         if self.determine_filled(self._open_order):
             self.entry_timestamp = self.current_time()
-            
         self.control_barriers()
         
         if self.status == RunnableStatus.SHUTTING_DOWN:
@@ -428,7 +429,7 @@ class MockPositionExecutor(PositionExecutor):
         
         return True
     
-    def on_candle(self, market_data) -> bool:
+    def on_candle(self, candle_data) -> bool:
         """ test on market data
 
         Args:
@@ -439,22 +440,21 @@ class MockPositionExecutor(PositionExecutor):
         """
         prices = []
         
-        if market_data['open'] < market_data['close']:
-            prices.extend([market_data['low'], market_data['high']])
+        if candle_data['open'] < candle_data['close']:
+            prices.extend([candle_data['low'], candle_data['high']])
         else:
-            prices.extend([market_data['high'], market_data['low']])
+            prices.extend([candle_data['high'], candle_data['low']])
         
-        prices.append(market_data['close'])
+        prices.append(candle_data['close'])
+        volume = candle_data['volume'] / len(prices)
 
-        key = f"{self.config.connector_name}_{self.config.trading_pair}"
         for price in prices:
-            self.market_data_provider.prices = {key: Decimal(price)}
- 
-            self.control_open_order()
+            self.market_data_provider.update_price(self.config.connector_name, self.config.trading_pair, price)
+            self.market_data_provider.update_volume(self.config.connector_name, self.config.trading_pair, volume)
             
+            self.control_open_order()
             if self.determine_filled(self._open_order):
                 self.entry_timestamp = self.current_time()
-                
             self.control_barriers()
             
             if self.status == RunnableStatus.SHUTTING_DOWN:

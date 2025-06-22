@@ -20,7 +20,7 @@ from plotly.subplots import make_subplots
 import socket
 import socks
 from backtesting import backtest_utils
-socks.set_default_proxy(socks.SOCKS5, backtest_utils.SOCKS_RPOXY_IP, backtest_utils.SOCKS_PROXY_PORT)
+socks.set_default_proxy(socks.SOCKS5, backtest_utils.SOCKS_PROXY_IP, backtest_utils.SOCKS_PROXY_PORT)
 socket.socket = socks.socksocket
 
 from backtesting.backtest_market_data_provider import CacheableBacktestMarketDataProvider
@@ -47,7 +47,7 @@ local_timezone_offset_hours = 8
 class BacktestResult:
     
     close_type_info_map = {
-            CloseType.TIME_LIMIT: 'TimeLmit', CloseType.STOP_LOSS: 'StopLoss', CloseType.TAKE_PROFIT: 'TakeProfit', 
+            CloseType.TIME_LIMIT: 'TimeLimit', CloseType.STOP_LOSS: 'StopLoss', CloseType.TAKE_PROFIT: 'TakeProfit', 
             CloseType.EXPIRED: 'Expired', CloseType.EARLY_STOP: 'EarlyStop', CloseType.TRAILING_STOP: 'TrailingStop', 
             CloseType.INSUFFICIENT_BALANCE: 'InsufficientBalance', CloseType.FAILED: 'Failed', 
             CloseType.COMPLETED: 'Completed', CloseType.POSITION_HOLD: 'PositionHold'}
@@ -285,8 +285,8 @@ class MyPositionExecutorSimulator(ExecutorSimulatorBase):
             executor_simulation = executor_simulation[executor_simulation.index <= early_stop_timestamp].copy()
             return ExecutorSimulation(config=config, executor_simulation=executor_simulation, close_type=CloseType.EARLY_STOP)
 
-        simulation_filterd = executor_simulation[executor_simulation.index >= start_timestamp]
-        if simulation_filterd.empty:
+        simulation_filtered = executor_simulation[executor_simulation.index >= start_timestamp]
+        if simulation_filtered.empty:
             return ExecutorSimulation(config=config, executor_simulation=executor_simulation, close_type=CloseType.TIME_LIMIT)
         
         entry_time = datetime.fromtimestamp(start_timestamp).strftime("%m%d:%H%M")
@@ -294,17 +294,17 @@ class MyPositionExecutorSimulator(ExecutorSimulatorBase):
         
         entry_price = float(config.entry_price)
         
-        timestamps = simulation_filterd.index.values
-        lows = simulation_filterd['low'].values
-        highs = simulation_filterd['high'].values
-        closes = simulation_filterd['close'].values
+        timestamps = simulation_filtered.index.values
+        lows = simulation_filtered['low'].values
+        highs = simulation_filtered['high'].values
+        closes = simulation_filtered['close'].values
         
         close_type = CloseType.TIME_LIMIT
         close_timestamp = None
         max_profit_ratio = -1e6
         trailing_stop_activated = False
         net_pnl_pct = 0
-        count = len(simulation_filterd)
+        count = len(simulation_filtered)
         
         if config.side == TradeType.BUY:
             side_multiplier = 1
@@ -417,27 +417,27 @@ class MyPositionExecutorSimulator(ExecutorSimulatorBase):
 
 class BacktestEngine(BacktestingEngineBase):
     
-    def __init__(self, batch: int = 1, base_dir: str = '.', print_detail: bool = False):
+    def __init__(self, batch: int = 1, base_dir: str = '.', print_detail: bool = False, enable_trades: bool = False):
         super().__init__()
         self.base_dir = base_dir
         self.batch = batch
-        self.backtesting_data_provider = CacheableBacktestMarketDataProvider(connectors={}, base_dir=base_dir)
+        self.backtesting_data_provider = CacheableBacktestMarketDataProvider(connectors={}, base_dir=base_dir, enable_trades=enable_trades)
         self.print_detail = print_detail
         
     def run_backtest(self, config_dir: str, config_path: str, start_date: datetime, end_date: datetime, 
-                     backtest_resolution: str = '3m', trade_cost: float = 0.0005, slippage: float = 0.0001):
-        return asyncio.run(self.async_backtest(config_dir, config_path, start_date, end_date, backtest_resolution, trade_cost, slippage))
+                     backtest_resolution: str = '3m', trade_cost: float = 0.0005, slippage: float = 0.0001, enable_trades: bool = False):
+        return asyncio.run(self.async_backtest(config_dir, config_path, start_date, end_date, backtest_resolution, trade_cost, slippage, enable_trades))
     
     def get_controller_config(self, config_dir: str, config_path: str):
         return self.get_controller_config_instance_from_yml(controllers_conf_dir_path=config_dir, config_path=config_path)
     
     async def async_backtest(self, config_dir: str, config_path: str, start_date: datetime, end_date: datetime, 
-                             backtest_resolution: str = '3m', trade_cost: float = 0.0005, slippage: float = 0.0001):
+                             backtest_resolution: str = '3m', trade_cost: float = 0.0005, slippage: float = 0.0001, enable_trades: bool = False):
         controller_config = self.get_controller_config(config_dir, config_path)
-        return await self.async_backtest_with_config(controller_config, start_date, end_date, backtest_resolution, trade_cost, slippage)
+        return await self.async_backtest_with_config(controller_config, start_date, end_date, backtest_resolution, trade_cost, slippage, enable_trades)
     
     async def async_backtest_with_config(self, controller_config: ControllerConfigBase, start_date: datetime, end_date: datetime, 
-                             backtest_resolution: str, trade_cost: float, slippage: float) -> BacktestResult:
+                             backtest_resolution: str, trade_cost: float, slippage: float, enable_trades: bool = False) -> BacktestResult:
         backtest_result = None
         try:
             t = time.time()
@@ -447,7 +447,7 @@ class BacktestEngine(BacktestingEngineBase):
             
             start = int(start_date.timestamp())
             end = int(end_date.timestamp())
-            result = await self.do_backtest(controller_config, start, end, executor_refresh_time, backtest_resolution, trade_cost, slippage)
+            result = await self.do_backtest(controller_config, start, end, executor_refresh_time, backtest_resolution, trade_cost, slippage, enable_trades)
             
             backtest_result = BacktestResult(result, controller_config, backtest_resolution, start_date, end_date, trade_cost, slippage)
             print(backtest_result.get_results_summary(None, f"[Batch-{self.batch}(time:{int(time.time() - t)}s)]. "))
@@ -460,10 +460,8 @@ class BacktestEngine(BacktestingEngineBase):
 
     async def do_backtest(self,
                           controller_config: ControllerConfigBase,
-                          start: int, end: int,
-                          executor_refresh_time: int,
-                          backtesting_resolution: str = "1m",
-                          trade_cost=0.0006, slippage: float=0.001):
+                          start: int, end: int, executor_refresh_time: int, backtesting_resolution: str = "1m",
+                          trade_cost=0.0006, slippage: float=0.001, enable_trades: bool = False):
         t = time.time()
         self.backtesting_data_provider.update_backtesting_time(start, end)
         await self.backtesting_data_provider.initialize_trading_rules(controller_config.connector_name)
@@ -474,9 +472,16 @@ class BacktestEngine(BacktestingEngineBase):
         self.backtesting_resolution = controller_config.candle_interval
         await self.initialize_backtesting_data_provider()
         
-        self.prepare_market_data()
+        candles_df = self.prepare_market_data()
         # processed_data will be recreated by MarketMakingControllerBase.update_processed_data() if not implemented by sub-class, so we keep it for backtest result
         processed_data_features = self.controller.processed_data["features"]
+        
+        if enable_trades:
+            connector_name = controller_config.connector_name
+            trading_pair = controller_config.trading_pair
+            trades_df = self.backtesting_data_provider.get_trades(connector_name, trading_pair, start, end)
+
+        market_data_df = trades_df if enable_trades else candles_df
         
         if self.print_detail:
             print(f'[Batch-{self.batch}] Prepare market data:{int(time.time() - t)}s')
@@ -485,39 +490,38 @@ class BacktestEngine(BacktestingEngineBase):
         active_executors: Dict[str, MockPositionExecutor] = {}
         stopped_executors_info: List[ExecutorInfo] = []
         
-        connector_name = controller_config.connector_name
-        trading_pair = controller_config.trading_pair
-        trades_df = self.backtesting_data_provider.get_trades(connector_name, trading_pair, start, end)
-        for _, row in trades_df.iterrows():
+        for _, row in market_data_df.iterrows():
             current_timestamp = int(row["timestamp"])
-            if current_timestamp < start:
-                continue
+            # if current_timestamp < start:
+            #     continue
             
             self.backtesting_data_provider.update_time(current_timestamp)
-            self.backtesting_data_provider.update_price(connector_name, trading_pair, row['price'])
-            self.backtesting_data_provider.update_volume(connector_name, trading_pair, row['volume'])
             
             # stopped_level_ids: List[str] = []
             
-            # 0. refresh executors
-            # update the executors info for controller to refresh
+            # 1. stop actions
+            # stop the executors if needed, e.g. time to refresh
             self.controller.executors_info = [e.executor_info for e in active_executors.values()] + stopped_executors_info
-            refresh_actions = self.controller.executors_to_refresh()
-            for refresh_action in refresh_actions:
-                if not isinstance(refresh_action, StopExecutorAction):
+            stop_actions = self.controller.stop_actions_proposal()
+            for stop_action in stop_actions:
+                if not isinstance(stop_action, StopExecutorAction):
                     continue
                 
                 # inactive executor id will be deleted in dict so we need to make a copy of items
                 for executor_id, executor in list(active_executors.items()):
-                    if not executor_id == refresh_action.executor_id:
+                    if not executor_id == stop_action.executor_id:
                         continue
                     executor.early_stop()
                     del active_executors[executor_id]
                     stopped_executors_info.append(executor.executor_info)
 
-            # 1. simulate the control task in position executor
+            # 2. simulate the control task in position executor
             for executor_id, executor in list(active_executors.items()):
-                active = executor.on_trade()
+                if enable_trades:
+                    active = executor.on_trade(row)
+                else:
+                    active = executor.on_candle(row)
+                
                 if not active:
                     # stopped_level_ids.append(executor.config.level_id)
                     del active_executors[executor_id]
@@ -526,8 +530,8 @@ class BacktestEngine(BacktestingEngineBase):
             # update the executors info for controller to determine the actions
             self.controller.executors_info = [e.executor_info for e in active_executors.values()] + stopped_executors_info
 
-            # 2. simulate the control task in controller
-            # 2.1 update the processed data
+            # 3. simulate the control task in controller
+            # 3.1 update the processed data
             if len(controller_config.candles_config) > 0:
                 candle_seconds = CandlesBase.interval_to_seconds[controller_config.candles_config[0].interval]
                 current_start = start - (100 * candle_seconds)
@@ -536,40 +540,43 @@ class BacktestEngine(BacktestingEngineBase):
             
             await self.controller.update_processed_data()
             
-            # 2.2 determine the actions
+            # 3.2 determine the actions
             actions = self.controller.determine_executor_actions()
             
-            # 2.2.1 process create actions
-            for refresh_action in actions:
-                if not isinstance(refresh_action, CreateExecutorAction):
+            # 3.2.1 process create actions
+            for executor_action in actions:
+                if not isinstance(executor_action, CreateExecutorAction):
                     continue
                 
                 # # prevent create actions for current stopped level. continue determination on the next market data.
                 # if action.executor_config.level_id in stopped_level_ids:
                 #     continue
                 
-                executor_id = refresh_action.executor_config.id
+                executor_id = executor_action.executor_config.id
                 executor = MockPositionExecutor(
-                    config=refresh_action.executor_config,
+                    config=executor_action.executor_config,
                     market_data_provider=self.backtesting_data_provider,
                     trade_cost=trade_cost,
                     slippage=slippage
                 )
-                active = executor.on_trade()
+                if enable_trades:
+                    active = executor.on_trade(row)
+                else:
+                    active = executor.on_candle(row)
                 
                 if active:
                     active_executors[executor_id] = executor
                 else:
                     stopped_executors_info.append(executor.executor_info)
                     
-            # 2.2.2 process stop actions
-            for refresh_action in actions:
-                if not isinstance(refresh_action, StopExecutorAction):
+            # 3.2.2 process stop actions
+            for executor_action in actions:
+                if not isinstance(executor_action, StopExecutorAction):
                     continue
                 
                 # inactive executor id will be deleted in dict so we need to make a copy of items
                 for executor_id, executor in list(active_executors.items()):
-                    if not executor_id == refresh_action.executor_id:
+                    if not executor_id == executor_action.executor_id:
                         continue
                     executor.early_stop()
                     del active_executors[executor_id]
@@ -589,7 +596,7 @@ class BacktestEngine(BacktestingEngineBase):
         results = self.summarize_results(self.controller.executors_info, controller_config.total_amount_quote)
         
         if self.print_detail:
-            print(f'[Batch-{self.batch}] Summraize results:{int(time.time() - t)}s')
+            print(f'[Batch-{self.batch}] Summarize results:{int(time.time() - t)}s')
         
         self.controller.processed_data['features'] = processed_data_features
         
@@ -658,7 +665,7 @@ class BacktestEngine(BacktestingEngineBase):
         results = self.summarize_results(executors_info, controller_config.total_amount_quote)
         
         if self.print_detail:
-            print(f'[Batch-{self.batch}] Summraize results:{int(time.time() - t)}s')
+            print(f'[Batch-{self.batch}] Summarize results:{int(time.time() - t)}s')
         
         self.controller.processed_data['features'] = market_data_features
         
@@ -795,7 +802,7 @@ class BacktestEngine(BacktestingEngineBase):
         results = self.summarize_results(self.controller.executors_info, controller_config.total_amount_quote)
         
         if self.print_detail:
-            print(f'[Batch-{self.batch}] Summraize results:{int(time.time() - t)}s')
+            print(f'[Batch-{self.batch}] Summarize results:{int(time.time() - t)}s')
         
         self.controller.processed_data['features'] = market_data_features
         
@@ -817,6 +824,7 @@ class BacktestParam:
     backtest_resolution: str
     trade_cost: float
     slippage: float
+    enable_trades: bool
 
 
 class ParamSpace:
@@ -907,7 +915,7 @@ class ParamSpace:
 class ParamOptimization:
     
     def run(self, config_dir: str, config_path: str, start_date: datetime, end_date: datetime, 
-            space_level: int = 0, backtest_resolution: str = '3m', trade_cost: float = 0.0005, slippage: float = 0.0001):
+            space_level: int = 0, backtest_resolution: str = '3m', trade_cost: float = 0.0005, slippage: float = 0.0001, enable_trades: bool = False):
         t = time.time()
         base_config_dict = BacktestEngine.load_controller_config(config_path=config_path, controllers_conf_dir_path=config_dir)
         trading_pair = base_config_dict.get('trading_pair')
@@ -916,7 +924,7 @@ class ParamOptimization:
             trading_pair=trading_pair,
             interval=backtest_resolution
         )
-        data_provider = CacheableBacktestMarketDataProvider(connectors={}, base_dir=config_dir)
+        data_provider = CacheableBacktestMarketDataProvider(connectors={}, base_dir=config_dir, enable_trades=enable_trades)
         
         start_timestamp = start_date.timestamp()
         end_timestamp = end_date.timestamp()
@@ -926,7 +934,7 @@ class ParamOptimization:
             candles_config.interval = base_config_dict['candle_interval']
             asyncio.run(data_provider.init_data(int(start_timestamp), int(end_timestamp), candles_config))
         
-        base_backtest_param = BacktestParam(0, config_dir, base_config_dict, start_date, end_date, backtest_resolution, trade_cost, slippage)
+        base_backtest_param = BacktestParam(0, config_dir, base_config_dict, start_date, end_date, backtest_resolution, trade_cost, slippage, enable_trades)
         backtest_params = ParamSpace(space_level).generate(base_backtest_param)
         print(f'Total param count:{len(backtest_params)}')
         
@@ -939,7 +947,7 @@ class ParamOptimization:
             os.mkdir(result_dir)
         
         print(f'Start running param optimization.')
-        cpus = min(os.cpu_count()-4, 230)
+        cpus = min(os.cpu_count()-4, 64)
         with ProcessPoolExecutor(max_workers=cpus) as pool:
             results = list(pool.map(self.run_one, backtest_params))
             
@@ -980,10 +988,10 @@ class ParamOptimization:
         
         backtest_result = None
         try:
-            backtest_engine = BacktestEngine(backtest_param.batch, backtest_param.base_dir)
+            backtest_engine = BacktestEngine(batch=backtest_param.batch, base_dir=backtest_param.base_dir, enable_trades=backtest_param.enable_trades)
             controller_config = backtest_engine.get_controller_config_instance_from_dict(backtest_param.config_dict)
             backtest_result = loop.run_until_complete(backtest_engine.async_backtest_with_config(controller_config, backtest_param.start_date, backtest_param.end_date, 
-                                                    backtest_param.backtest_resolution, backtest_param.trade_cost, backtest_param.slippage))
+                                                    backtest_param.backtest_resolution, backtest_param.trade_cost, backtest_param.slippage, backtest_param.enable_trades))
             
             for task in asyncio.all_tasks(loop):
                 task.cancel()

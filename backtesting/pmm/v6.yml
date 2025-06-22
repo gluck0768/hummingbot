@@ -21,7 +21,7 @@ take_profit: 6
 take_profit_order_type: 2
 time_limit: 86400
 total_amount_quote: 60
-trading_pair: 1000PEPE-USDT
+trading_pair: TRUMP-USDT
 trailing_stop:
   activation_price: 100
   trailing_delta: 0.5
