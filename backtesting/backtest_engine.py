@@ -469,7 +469,7 @@ class BacktestEngine(BacktestingEngineBase):
         controller_class = controller_config.get_controller_class()
         self.controller = controller_class(config=controller_config, market_data_provider=self.backtesting_data_provider, actions_queue=None)
         
-        self.backtesting_resolution = controller_config.candle_interval
+        self.backtesting_resolution = backtesting_resolution
         await self.initialize_backtesting_data_provider()
         
         candles_df = self.prepare_market_data()
@@ -492,9 +492,6 @@ class BacktestEngine(BacktestingEngineBase):
         
         for _, row in market_data_df.iterrows():
             current_timestamp = int(row["timestamp"])
-            # if current_timestamp < start:
-            #     continue
-            
             self.backtesting_data_provider.update_time(current_timestamp)
             
             # stopped_level_ids: List[str] = []
@@ -533,9 +530,12 @@ class BacktestEngine(BacktestingEngineBase):
             # 3. simulate the control task in controller
             # 3.1 update the processed data
             if len(controller_config.candles_config) > 0:
-                candle_seconds = CandlesBase.interval_to_seconds[controller_config.candles_config[0].interval]
+                candle_seconds = CandlesBase.interval_to_seconds[controller_config.candle_interval]
                 current_start = start - (100 * candle_seconds)
-                current_end = current_timestamp - candle_seconds
+                
+                reference_price_seconds = CandlesBase.interval_to_seconds[self.backtesting_resolution]
+                current_end = current_timestamp - reference_price_seconds
+                
                 self.backtesting_data_provider.update_start_end_time(current_start, current_end)
             
             await self.controller.update_processed_data()

@@ -11,7 +11,7 @@ connector_name: binance_perpetual
 controller_name: pmm_trending_adaptive_v6
 controller_type: market_making
 cooldown_time: 1800
-executor_refresh_time: 70
+executor_refresh_time: 190
 id: trump-v6-2
 leverage: 20
 manual_kill_switch: false
@@ -27,8 +27,8 @@ trailing_stop:
   trailing_delta: 0.5
 sleep_interval: 1
 update_interval: 5
-candle_interval: 1m
-reference_price_type: mid
+candle_interval: 3m
+reference_price_type: close
 sma_short_length: 10
 sma_length: 30
 cci_length: 30

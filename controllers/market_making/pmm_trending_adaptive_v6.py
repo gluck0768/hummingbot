@@ -185,7 +185,7 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
                     f"candle_cci:{candle_cci:.1f} < threshold:{-self.config.cci_threshold:.1f}")
         
         candle_natr = natr.iloc[-1]
-        self.log_msg(f'close:{candles_close.iloc[-1]:.7f}, high:{candles_high.iloc[-1]:.7f}, low:{candles_low.iloc[-1]:.7f}, '
+        self.log_msg(f'Processed data({pmm_common.format_timestamp(last_candle_timestamp)}-{self.config.candle_interval} candle) close:{candles_close.iloc[-1]:.7f}, high:{candles_high.iloc[-1]:.7f}, low:{candles_low.iloc[-1]:.7f}, '
                      f'sma_short:{candle_sma_short:.7f}, sma:{candle_sma:.7f}, cci:{candle_cci:.2f}, natr:{candle_natr:.4%}, trend:{trend}')
         
         self.processed_data.update(
@@ -237,7 +237,8 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
         else:
             return Decimal(0)
         
-        self.log_msg(f'reference_price:{reference_price:.7f}, close:{last_close:.7f}, mid:{last_mid:.7f}, high:{last_high:.7f}, low:{last_low:.7f}')
+        last_candle_timestamp = reference_candles["timestamp"].iloc[last_index]
+        self.log_msg(f'Calc reference price({pmm_common.format_timestamp(last_candle_timestamp)}-{self.reference_candles_config.interval} candle) reference_price:{reference_price:.7f}, close:{last_close:.7f}, mid:{last_mid:.7f}, high:{last_high:.7f}, low:{last_low:.7f}')
         self.processed_data["reference_price"] = reference_price
         return reference_price
 

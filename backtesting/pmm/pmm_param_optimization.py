@@ -26,7 +26,7 @@ if __name__ == '__main__':
     # end_date = datetime(2025, 6, 15, 14, 0)
     
     start_date = datetime(2025, 6, 18, 0, 0)
-    end_date = datetime(2025, 6, 18, 20, 0)
+    end_date = datetime(2025, 6, 22, 17, 0)
 
     config_file = 'pmm_param_optimization.yml'
     backtest_resolution = '1m'
