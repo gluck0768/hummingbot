@@ -862,19 +862,19 @@ class ParamSpace:
         backtest_params = []
         batch = 1
         
-        executor_refresh_time_space = [70, 130, 190, 250, 310, 370]
-        take_profit_space = np.arange(1, 7.1, 1)
-        stop_loss_space = np.arange(3, 12.1, 1)
+        executor_refresh_time_space = [910, 1810]
+        take_profit_space = np.arange(1, 6.1, 1)
+        stop_loss_space = np.arange(2, 10.1, 1)
         # cooldown_time_space = [600, 900, 1800]
-        spread_space = [[0.5], [1], [2], [3], [4]]
-        reference_price_type_space = ['mid', 'close']
+        spread_space = [[0.5], [0.75], [1]]
+        reference_price_type_space = ['close']
         # trailing_stop_space = np.arange(0.015, 0.026, 0.005)
         # cci_threshold_space = [80]
         # length_space = np.arange(20, 41, 10)
-        # natr_length_space = [7, 14, 21]
-        widen_space = [2, 3]
+        natr_length_space = [15, 21, 41]
+        widen_space = [8]
         narrow_space = [1]
-        max_stop_loss_space = [0.03]
+        max_stop_loss_space = [0.04, 0.05, 0.06]
         # max_stop_loss_space = np.arange(0.02, 0.031, 0.01)
         
         for executor_refresh_time in executor_refresh_time_space:
@@ -886,32 +886,32 @@ class ParamSpace:
                             # for trailing_stop in trailing_stop_space:
                             # for cci_threshold in cci_threshold_space:
                                 # for length in length_space:
-                            # for natr_length in natr_length_space:
-                            for widen in widen_space:
-                                for narrow in narrow_space:
-                                    for max_stop_loss in max_stop_loss_space:
-                                        backtest_param = copy.deepcopy(base_backtest_param)
-                            
-                                        config_dict = backtest_param.config_dict
-                                        config_dict['executor_refresh_time'] = executor_refresh_time
-                                        config_dict['take_profit'] = take_profit
-                                        config_dict['stop_loss'] = stop_loss
-                                        # config_dict['cooldown_time'] = cooldown_time
-                                        config_dict['buy_spreads'] = spread
-                                        config_dict['sell_spreads'] = spread
-                                        config_dict['reference_price_type'] = reference_price_type
-                                        # config_dict['trailing_stop']['activation_price'] = trailing_stop
-                                        # config_dict['cci_threshold'] = cci_threshold
-                                        # config_dict['sma_length'] = length
-                                        # config_dict['cci_length'] = length
-                                        # config_dict['natr_length'] = natr_length
-                                        config_dict['widen_spread_multiplier'] = widen
-                                        config_dict['narrow_spread_multiplier'] = narrow
-                                        config_dict['max_stop_loss'] = max_stop_loss
-                                        
-                                        backtest_param.batch = batch
-                                        backtest_params.append(backtest_param)
-                                        batch += 1
+                            for natr_length in natr_length_space:
+                                for widen in widen_space:
+                                    for narrow in narrow_space:
+                                        for max_stop_loss in max_stop_loss_space:
+                                            backtest_param = copy.deepcopy(base_backtest_param)
+                                
+                                            config_dict = backtest_param.config_dict
+                                            config_dict['executor_refresh_time'] = executor_refresh_time
+                                            config_dict['take_profit'] = take_profit
+                                            config_dict['stop_loss'] = stop_loss
+                                            # config_dict['cooldown_time'] = cooldown_time
+                                            config_dict['buy_spreads'] = spread
+                                            config_dict['sell_spreads'] = spread
+                                            config_dict['reference_price_type'] = reference_price_type
+                                            # config_dict['trailing_stop']['activation_price'] = trailing_stop
+                                            # config_dict['cci_threshold'] = cci_threshold
+                                            # config_dict['sma_length'] = length
+                                            # config_dict['cci_length'] = length
+                                            config_dict['natr_length'] = natr_length
+                                            config_dict['widen_spread_multiplier'] = widen
+                                            config_dict['narrow_spread_multiplier'] = narrow
+                                            config_dict['max_stop_loss'] = max_stop_loss
+                                            
+                                            backtest_param.batch = batch
+                                            backtest_params.append(backtest_param)
+                                            batch += 1
 
         return backtest_params
 

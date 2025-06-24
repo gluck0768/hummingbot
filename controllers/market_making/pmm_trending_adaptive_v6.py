@@ -397,7 +397,8 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
             
             if not executor_info.is_active or not executor_info.is_trading:
                 continue
-            early_take_profit = max(self.config.take_profit / Decimal(time_factor), self.config.early_stop_activation_price_min)
+                
+            early_take_profit = max(executor_info.config.triple_barrier_config.take_profit / Decimal(time_factor), self.config.early_stop_activation_price_min)
             if executor_info.net_pnl_pct > early_take_profit:
                 executors_to_early_stop.append(executor_info)
                 self.log_msg(f'Add {executor_info} to early take profit, pnl:{executor_info.net_pnl_pct:.2%}, threshold:{early_take_profit:.2f}, execution_time:{execution_seconds}s')

@@ -25,13 +25,13 @@ if __name__ == '__main__':
     # start_date = datetime(2025, 6, 14, 0, 0)
     # end_date = datetime(2025, 6, 15, 14, 0)
     
-    start_date = datetime(2025, 6, 4, 0, 0)
-    end_date = datetime(2025, 6, 22, 0, 0)
+    start_date = datetime(2025, 6, 18, 0, 0)
+    end_date = datetime(2025, 6, 23, 22, 0)
 
     config_file = 'pmm_param_optimization.yml'
     backtest_resolution = '1m'
     trade_cost = 0.0002
-    slippage = 0.0001
+    slippage = 0.004
     enable_trades = False
 
     space_level = 100
