@@ -78,6 +78,9 @@ class MockPositionExecutor(PositionExecutor):
         return
 
     def early_stop(self, keep_position: bool = False):
+        if self.is_trading:
+            self.place_close_order_and_cancel_open_orders(CloseType.EARLY_STOP)
+
         super().early_stop(keep_position)
         super().stop()
         
@@ -245,7 +248,7 @@ class MockPositionExecutor(PositionExecutor):
     
         return price
         
-    def place_close_order_and_cancel_open_orders(self, close_type, price=Decimal("NaN")):
+    def place_close_order_and_cancel_open_orders(self, close_type: CloseType, price=Decimal("NaN")):
         price = self.process_nan_price(price)
         price = self.calc_close_price_for_market_order(price, close_type)
         super().place_close_order_and_cancel_open_orders(close_type, price)

@@ -143,8 +143,9 @@ class CacheableBacktestMarketDataProvider(BacktestingDataProvider):
         if candles_df.empty:
             candles_df = await super().get_candles_feed(config)
             self._save_to_local(candles_df, key)
-        else:
-            self.candles_feeds[key] = candles_df
+            candles_df = self.index_and_sort_by_timestamp(candles_df)
+        
+        self.candles_feeds[key] = candles_df
         return self._filter_existing_feed(candles_df)
     
     @staticmethod
