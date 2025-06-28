@@ -115,10 +115,20 @@ Close Types: Take Profit: {take_profit} | Trailing Stop: {trailing_stop} | Stop 
             open=self.processed_data['open'],
             high=self.processed_data['high'],
             low=self.processed_data['low'],
-            close=self.processed_data['close'],
+            close=self.processed_data['close'],            
             increasing_line_color='#2ECC71',  # 上涨K线颜色（绿色）
             decreasing_line_color='#E74C3C',  # 下跌K线颜色（红色）
             name='K-Lines',
+        )
+
+    def _get_bt_volume_trace(self):
+        self.processed_data.index = pd.to_datetime(self.processed_data.timestamp, unit='s') + pd.Timedelta(hours=local_timezone_offset_hours)
+        
+        return go.Bar(
+            x=self.processed_data.index,
+            y=self.processed_data['volume'],
+            opacity=1,
+            name='Volume'
         )
         
 
@@ -222,18 +232,21 @@ Close Types: Take Profit: {take_profit} | Trailing Stop: {trailing_stop} | Stop 
 
     def get_backtesting_figure(self):
         # Create subplots
-        fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
-                            vertical_spacing=0.02, subplot_titles=('Candlestick', 'PNL Quote'),
-                            row_heights=[0.7, 0.3])
+        fig = make_subplots(rows=3, cols=1, shared_xaxes=True,
+                            vertical_spacing=0.02, subplot_titles=('Candlestick', 'Volume', 'PNL Quote'),
+                            row_heights=[0.6, 0.2, 0.2])
 
         # Add candlestick trace
         fig.add_trace(self._get_bt_candlestick_trace(), row=1, col=1)
 
         # Add executors trace
         fig = self._add_executors_trace(fig, self.executors, row=1, col=1)
-
+        
+        # Add volume trace
+        fig.add_trace(self._get_bt_volume_trace(), row=2, col=1)
+        
         # Add PNL trace
-        fig.add_trace(self._get_pnl_trace(self.executors), row=2, col=1)
+        fig.add_trace(self._get_pnl_trace(self.executors), row=3, col=1)
 
         # Apply the theme layout
         layout_settings = self._get_default_layout(f"Trading Pair: {self.controller_config.dict().get('trading_pair')}")
@@ -242,9 +255,11 @@ Close Types: Take Profit: {take_profit} | Trailing Stop: {trailing_stop} | Stop 
 
         # Update axis properties
         fig.update_xaxes(rangeslider_visible=False, row=1, col=1)
-        fig.update_xaxes(row=2, col=1)
+        fig.update_xaxes(rangeslider_visible=False, row=2, col=1)
+        fig.update_xaxes(row=3, col=1)
         fig.update_yaxes(title_text="Price", row=1, col=1)
-        fig.update_yaxes(title_text="PNL", row=2, col=1)
+        fig.update_yaxes(title_text="Volume", row=2, col=1)
+        fig.update_yaxes(title_text="PNL", row=3, col=1)
         return fig
 
 

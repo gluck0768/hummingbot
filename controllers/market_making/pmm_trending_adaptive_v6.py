@@ -391,7 +391,7 @@ class PMMTrendingAdaptiveV6Controller(MarketMakingControllerBase):
         
         for executor_info in self.executors_info:
             execution_seconds = self.market_data_provider.time() - executor_info.timestamp
-            time_factor = round(execution_seconds / float(self.config.early_stop_decrease_interval), 1)
+            time_factor = round(execution_seconds / float(self.config.early_stop_decrease_interval), 0)
             if time_factor <= 1:
                 continue
             
