@@ -1,33 +1,33 @@
 buy_amounts_pct:
 - 0.5
 buy_spreads:
-- 1
+- 0.5
 sell_amounts_pct:
 - 0.5
 sell_spreads:
-- 1
+- 0.5
 candles_config: []
 connector_name: binance_perpetual
-controller_name: pmm_trending_adaptive_v6
+controller_name: pmm_trend_v1
 controller_type: market_making
 cooldown_time: 1800
-executor_refresh_time: 910
-id: trump-v6-2
+executor_refresh_time: 1810
+id: trend-v1
 leverage: 10
 manual_kill_switch: false
 position_mode: HEDGE
-stop_loss: 20
-take_profit: 6
+stop_loss: 8
+take_profit: 3
 take_profit_order_type: 2
-time_limit: 28800
-total_amount_quote: 40
-trading_pair: FUN-USDT
+time_limit: 864000
+total_amount_quote: 30
+trading_pair: PENGU-USDT
 trailing_stop:
-  activation_price: 100
+  activation_price: 0.95
   trailing_delta: 0.5
 sleep_interval: 1
 update_interval: 5
-candle_interval: 15m
+candle_interval: 30m
 reference_price_type: close
 sma_short_length: 10
 sma_length: 30
@@ -35,8 +35,8 @@ cci_length: 30
 cci_threshold: 80
 natr_length: 21
 widen_spread_multiplier: 1
-narrow_spread_multiplier: 1
+narrow_spread_multiplier: 0.1
 early_stop_activation_price_min: 0.005
-early_stop_decrease_interval: 3600
+early_stop_decrease_interval: 7200
 trade_cost: 0.0002
-max_stop_loss: 0.03
+max_stop_loss: 0.05

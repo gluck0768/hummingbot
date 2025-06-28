@@ -240,9 +240,8 @@ class MockPositionExecutor(PositionExecutor):
             factor = 1 if open_order.trade_type == TradeType.SELL else -1
             close_price = self.entry_price * (1 + factor * self.config.triple_barrier_config.stop_loss)
             return self.calc_filled_price_with_slippage(close_price, OrderType.MARKET, self.close_order_side)
-        # elif close_type == CloseType.TRAILING_STOP:
-        #     return price  # TODO: to be implemented
-        elif close_type == CloseType.TIME_LIMIT or close_type == CloseType.EARLY_STOP or close_type == CloseType.EXPIRED:
+        elif close_type == CloseType.TRAILING_STOP or close_type == CloseType.TIME_LIMIT \
+            or close_type == CloseType.EARLY_STOP or close_type == CloseType.EXPIRED:
             close_price = self.get_market_price()
             return self.calc_filled_price_with_slippage(close_price, OrderType.MARKET, self.close_order_side)
     
