@@ -255,6 +255,19 @@ class PMMTrendV1Controller(MarketMakingControllerBase):
         """
         level = self.get_level_from_level_id(level_id)
         trade_type = self.get_trade_type_from_level_id(level_id)
+        
+        trend = self.processed_data["trend"]
+        
+        if trend == UP_TREND and trade_type == TradeType.SELL:
+            return 0, 0
+        
+        if trend == DOWN_TREND and trade_type == TradeType.BUY:
+            return 0, 0
+        
+        if trend == NEUTRAL_TREND:
+            # TODO: market making
+            return 0, 0
+        
         spreads, amounts_quote = self.config.get_spreads_and_amounts_in_quote(trade_type)
         reference_price = self.calc_reference_price()
         if reference_price == 0:
@@ -267,15 +280,12 @@ class PMMTrendV1Controller(MarketMakingControllerBase):
         base_spread_multiplier = Decimal(natr)
         spread_in_pct = Decimal(spreads[int(level)]) * base_spread_multiplier
         
-        trend = self.processed_data["trend"]
         
         if trend == UP_TREND:
             if trade_type == TradeType.BUY:
                 spread_in_pct *= Decimal(self.config.narrow_spread_multiplier)
                 if not pmm_common.BACKTESTING:
                     self.log_msg(f"Up trend [Narrow] {level_id} spread:{spread_in_pct:.2%}, base spread_multiplier:{base_spread_multiplier:.2%}, reference_price:{reference_price:.5f}")
-            else:
-                return 0, 0
             # elif trade_type == TradeType.SELL:
             #     spread_in_pct *= Decimal(self.config.widen_spread_multiplier)
             #     if not pmm_common.BACKTESTING:
@@ -285,14 +295,10 @@ class PMMTrendV1Controller(MarketMakingControllerBase):
                 spread_in_pct *= Decimal(self.config.narrow_spread_multiplier)
                 if not pmm_common.BACKTESTING:
                     self.log_msg(f"Down trend [Narrow] {level_id} spread:{spread_in_pct:.2%}, base spread_multiplier:{base_spread_multiplier:.2%}, reference_price:{reference_price:.5f}")
-            else:
-                return 0, 0
             # elif trade_type == TradeType.BUY:
             #     spread_in_pct *= Decimal(self.config.widen_spread_multiplier)
             #     if not pmm_common.BACKTESTING:
             #         self.log_msg(f"Down trend [Widen] {level_id} spread:{spread_in_pct:.2%}, base spread_multiplier:{base_spread_multiplier:.2%}, reference_price:{reference_price:.5f}")
-        else:
-            return 0, 0
         
         side_multiplier = Decimal("-1") if trade_type == TradeType.BUY else Decimal("1")
         order_price = reference_price * (1 + side_multiplier * spread_in_pct)
