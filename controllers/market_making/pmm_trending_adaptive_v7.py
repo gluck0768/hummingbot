@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from datetime import datetime
 
 talib_available = False
@@ -10,9 +10,9 @@ except ImportError:
     talib = None
 
 import pandas_ta as pta
-from pydantic import Field
+from pydantic import Field, field_validator
 
-from hummingbot.core.data_type.common import OrderType, TradeType
+from hummingbot.core.data_type.common import OrderType, TradeType, PriceType
 from hummingbot.data_feed.candles_feed.data_types import CandlesConfig
 from hummingbot.data_feed.candles_feed.candles_base import CandlesBase
 from hummingbot.strategy_v2.controllers.market_making_controller_base import (
@@ -99,6 +99,18 @@ class PMMTrendingAdaptiveV7ControllerConfig(MarketMakingControllerConfigBase):
     max_stop_loss: float = Field(
         default=0.025,
         json_schema_extra={"prompt": "Enter the max stop loss(0.025): ", "prompt_on_new": True, "is_updatable": True})
+    executor_activation_bounds: Optional[List[Decimal]] = Field(default=None, json_schema_extra={"is_updatable": True})
+
+    @field_validator("executor_activation_bounds", mode="before")
+    @classmethod
+    def parse_activation_bounds(cls, v):
+        if isinstance(v, list):
+            return [Decimal(val) for val in v]
+        elif isinstance(v, str):
+            if v == "":
+                return None
+            return [Decimal(val) for val in v.split(",")]
+        return v
 
 
 class PMMTrendingAdaptiveV7Controller(MarketMakingControllerBase):
@@ -241,6 +253,10 @@ class PMMTrendingAdaptiveV7Controller(MarketMakingControllerBase):
             reference_price = Decimal(last_close)
         elif self.config.reference_price_type == 'mid':
             reference_price = Decimal(last_mid)
+        elif self.config.reference_price_type == 'latest':
+            reference_price = self.market_data_provider.get_price_by_type(self.reference_candles_config.connector,
+                                                                          self.reference_candles_config.trading_pair,
+                                                                          PriceType.MidPrice)
         else:
             return Decimal(0)
         
@@ -256,9 +272,6 @@ class PMMTrendingAdaptiveV7Controller(MarketMakingControllerBase):
         level = self.get_level_from_level_id(level_id)
         trade_type = self.get_trade_type_from_level_id(level_id)
         spreads, amounts_quote = self.config.get_spreads_and_amounts_in_quote(trade_type)
-        reference_price = self.calc_reference_price()
-        if reference_price == 0:
-            return 0, 0
         
         natr = self.processed_data.get("natr")
         if natr is None:
@@ -289,6 +302,10 @@ class PMMTrendingAdaptiveV7Controller(MarketMakingControllerBase):
         #             self.log_msg(f"Down trend [Narrow] {level_id} spread:{spread_in_pct:.2%}, base spread_multiplier:{base_spread_multiplier:.2%}, reference_price:{reference_price:.5f}")
         
         if trend == 'high_cci':
+            return 0, 0
+        
+        reference_price = self.calc_reference_price()
+        if reference_price == 0:
             return 0, 0
         
         side_multiplier = Decimal("-1") if trade_type == TradeType.BUY else Decimal("1")
@@ -348,6 +365,7 @@ class PMMTrendingAdaptiveV7Controller(MarketMakingControllerBase):
             triple_barrier_config=triple_barrier_config,
             leverage=self.config.leverage,
             side=trade_type,
+            activation_bounds=self.config.executor_activation_bounds,
         )
         
         if not pmm_common.BACKTESTING or pmm_common.LOG_DETAIL:
